@@ -19,8 +19,12 @@ export function normalizeAmadeusOffers(json: unknown): Offer[] {
     const itineraries = item?.itineraries ?? [];
     const segments: Segment[] = [];
     let totalMinutes = 0;
+    let maxStopsPerDirection = 0;
     for (const itin of itineraries) {
-      for (const seg of itin?.segments ?? []) {
+      const itinSegments = Array.isArray(itin?.segments) ? itin.segments : [];
+      const stopsForThisItin = Math.max(0, itinSegments.length - 1);
+      if (stopsForThisItin > maxStopsPerDirection) maxStopsPerDirection = stopsForThisItin;
+      for (const seg of itinSegments) {
         const departureAt = seg?.departure?.at;
         const arrivalAt = seg?.arrival?.at;
         const carrier = seg?.carrierCode;
@@ -54,7 +58,7 @@ export function normalizeAmadeusOffers(json: unknown): Offer[] {
       currency,
       segments,
       totalDurationMinutes: totalMinutes,
-      stops: Math.max(0, segments.length - (itineraries.length || 1)),
+      stops: maxStopsPerDirection,
       cabin: guessCabinFromOffer(item),
       airlines: Array.from(carriers),
       deepLink: null,

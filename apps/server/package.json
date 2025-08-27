@@ -8,12 +8,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@trpc/client": "^11.5.0",
+    "@trpc/server": "^11.5.0",
+    "convex": "^1.26.1",
+    "dotenv": "^17.2.1",
     "next": "15.5.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "dotenv": "^17.2.1",
-    "@trpc/server": "^11.5.0",
-    "@trpc/client": "^11.5.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",

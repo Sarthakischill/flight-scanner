@@ -55,6 +55,10 @@ export function scoreOffer(offer: Offer, baselinePrice?: number): ScoreResult {
   // 6) Trip length sweet spot (0-10) — placeholder neutral 7
   breakdown.tripLength = 7;
 
+  // 7) Layover quality adjustments (penalties up to 5 total)
+  const layoverPenalty = computeLayoverPenalty(offer, badges);
+  breakdown.layovers = -Math.abs(layoverPenalty);
+
   const total = clamp(
     0,
     100,
@@ -74,4 +78,26 @@ function clamp(min: number, max: number, value: number): number {
 
 function round(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+// Adds badges for tight/long layovers and returns a penalty (0-5)
+function computeLayoverPenalty(offer: Offer, badges: string[]): number {
+  if (!offer.segments.length) return 0;
+  const segs = [...offer.segments].sort(
+    (a, b) => new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime(),
+  );
+  let penalty = 0;
+  for (let i = 1; i < segs.length; i++) {
+    const prevArr = new Date(segs[i - 1].arrivalAt).getTime();
+    const nextDep = new Date(segs[i].departureAt).getTime();
+    const layoverMin = Math.max(0, Math.round((nextDep - prevArr) / 60000));
+    if (layoverMin > 0 && layoverMin < 45) {
+      if (!badges.includes('tight connection')) badges.push('tight connection');
+      penalty += 3;
+    } else if (layoverMin >= 240) {
+      if (!badges.includes('long layover')) badges.push('long layover');
+      penalty += 2;
+    }
+  }
+  return Math.min(5, penalty);
 }
