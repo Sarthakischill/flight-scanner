@@ -3,9 +3,19 @@ import { searchFlightOffers } from '@/lib/amadeus';
 import { normalizeAmadeusOffers } from '@/lib/normalize';
 import { SearchInputSchema } from '@/lib/schemas';
 import { scoreOffer } from '@/lib/score';
+import {
+  computeRouteKey,
+  medianBaseline,
+  recordSnapshots,
+  stopsToBucket,
+} from '@/lib/baseline';
+import { getFromCache, makeCacheKey, setInCache } from '@/lib/cache';
+import { assertRateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: NextRequest) {
   try {
+    // Basic per-IP rate limit
+    assertRateLimit(req);
     const body = await req.json();
     const parsed = SearchInputSchema.safeParse(body);
     if (!parsed.success) {
@@ -44,19 +54,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch from Amadeus
-    const raw = await searchFlightOffers(parsed.data);
+    // Cache layer (10 minutes) with optional refresh flag later
+    const cacheKey = makeCacheKey('search', parsed.data);
+    let raw = getFromCache<any>(cacheKey);
+    if (!raw) {
+      // Fetch from Amadeus
+      raw = await searchFlightOffers(parsed.data);
+      setInCache(cacheKey, raw, 10 * 60 * 1000);
+    }
     const offers = normalizeAmadeusOffers(raw);
 
-    // TODO: integrate baseline from Convex snapshots. For now baseline undefined.
+    // Record snapshots and compute baseline for the route bucket
+    const minStops = offers.length ? Math.min(...offers.map((o) => o.stops)) : 0;
+    const routeKey = computeRouteKey({
+      from: parsed.data.from,
+      to: parsed.data.to,
+      cabin: parsed.data.cabin,
+      stopsBucket: stopsToBucket(minStops),
+    });
+    recordSnapshots(routeKey, offers);
+    const baseline = medianBaseline(routeKey);
+
     const scored = offers.map((o) => {
-      const s = scoreOffer(o);
-      return {
-        ...o,
-        score: s.score,
-        scoreBreakdown: s.breakdown,
-        badges: s.badges,
-      };
+      const s = scoreOffer(o, baseline);
+      return { ...o, score: s.score, scoreBreakdown: s.breakdown, badges: s.badges };
     });
 
     // Simple sorting and pagination

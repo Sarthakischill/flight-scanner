@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { suggestAirports } from '@/lib/amadeus';
+import { assertRateLimit } from '@/lib/rateLimit';
 
 export async function GET(req: NextRequest) {
   try {
+    assertRateLimit(req, 60, 60_000);
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q');
     if (!q || q.length < 2) {

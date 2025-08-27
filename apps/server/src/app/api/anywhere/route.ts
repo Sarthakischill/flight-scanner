@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { inspirationSearch } from '@/lib/amadeus';
+import { assertRateLimit } from '@/lib/rateLimit';
 
 export async function GET(req: NextRequest) {
   try {
+    assertRateLimit(req);
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from');
     const date = searchParams.get('date') ?? undefined;
