@@ -1,19 +1,35 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const SearchInputSchema = z.object({
-  roundTrip: z.boolean(),
-  from: z.string().length(3),
-  to: z.string().length(3).optional(),
-  departDate: z.string(),
-  returnDate: z.string().optional(),
-  travelers: z.number().int().min(1).max(9).default(1),
-  cabin: z.enum(["economy", "premium_economy", "business", "first"]).default("economy"),
-  maxStops: z.enum(["direct", "one", "any"]).default("any"),
-  durationDays: z.tuple([z.number().int().min(1), z.number().int().max(30)]).optional(),
-  page: z.number().int().min(1).default(1),
-  perPage: z.number().int().min(10).max(50).default(20),
-  sortBy: z.enum(["score", "price", "duration"]).default("score"),
-});
+export const SearchInputSchema = z
+  .object({
+    roundTrip: z.boolean(),
+    from: z.string().length(3),
+    to: z.string().length(3),
+    departDate: z.string(),
+    returnDate: z.string().optional(),
+    travelers: z.number().int().min(1).max(9).default(1),
+    cabin: z
+      .enum(['economy', 'premium_economy', 'business', 'first'])
+      .default('economy'),
+    maxStops: z.enum(['direct', 'one', 'any']).default('any'),
+    durationDays: z
+      .tuple([z.number().int().min(1), z.number().int().max(30)])
+      .optional(),
+    page: z.number().int().min(1).default(1),
+    perPage: z.number().int().min(10).max(50).default(20),
+    sortBy: z.enum(['score', 'price', 'duration']).default('score'),
+  })
+  .refine(
+    (data) => {
+      // If roundTrip is true, a returnDate must be provided
+      if (data.roundTrip) return typeof data.returnDate === 'string';
+      return true;
+    },
+    {
+      message: 'returnDate is required when roundTrip is true',
+      path: ['returnDate'],
+    }
+  );
 
 export type SearchInput = z.infer<typeof SearchInputSchema>;
 
@@ -50,5 +66,3 @@ export const PriceSnapshotSchema = z.object({
   collectedAt: z.string(),
 });
 export type PriceSnapshot = z.infer<typeof PriceSnapshotSchema>;
-
-
